@@ -30,6 +30,7 @@ class Table : private Noncopyable {
   // we need to explicitly set the move constructor to default when
   // we overwrite the copy constructor
   Table(Table&&) = default;
+
   Table& operator=(Table&&) = default;
 
   // returns the number of columns (cannot exceed ColumnID (uint16_t))
@@ -45,6 +46,7 @@ class Table : private Noncopyable {
 
   // returns the chunk with the given id
   Chunk& get_chunk(ChunkID chunk_id);
+
   const Chunk& get_chunk(ChunkID chunk_id) const;
 
   // Adds a chunk to the table. If the first chunk is empty, it is replaced.
@@ -76,6 +78,12 @@ class Table : private Noncopyable {
   void append(std::vector<AllTypeVariant> values);
 
  protected:
-  // Implementation goes here
+  std::vector<std::shared_ptr<Chunk>> _chunks;
+  uint32_t _chunk_size;
+  std::vector<std::string> _column_names;
+  std::vector<std::string> _column_types;
+
+  bool should_open_new_chunk() const;
+  void open_new_chunk();
 };
 }  // namespace opossum
