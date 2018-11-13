@@ -71,4 +71,6 @@ TEST_F(StorageTableTest, GetColumnIdByName) {
 
 TEST_F(StorageTableTest, GetChunkSize) { EXPECT_EQ(t.chunk_size(), 2u); }
 
+TEST_F(StorageTableTest, ColumnNames) { EXPECT_EQ(t.column_names(), std::vector<std::string>({"col_1", "col_2"})); }
+
 }  // namespace opossum

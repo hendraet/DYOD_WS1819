@@ -46,8 +46,8 @@ class StorageManager : private Noncopyable {
 
   std::map<std::string, std::shared_ptr<Table>> _table_mapping;
 
-  void print_header(std::ostream& out) const;
-  void print_table(std::ostream& out, const std::string& table_name, std::shared_ptr<Table> table) const;
-  std::string pad_right(std::string input, size_t total_width, char pad_with = ' ') const;
+  void _print_header(std::ostream& out) const;
+  void _print_table(std::ostream& out, const std::string& table_name, std::shared_ptr<Table> table) const;
+  std::string _pad_right(std::string input, size_t total_width, char pad_with = ' ') const;
 };
 }  // namespace opossum
