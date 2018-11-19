@@ -20,6 +20,10 @@ namespace opossum {
 
 Table::Table(const uint32_t chunk_size) : _chunk_size{chunk_size} { _open_new_chunk(); }
 
+void Table::add_column_definition(const std::string& name, const std::string& type) {
+  // Implementation goes here
+}
+
 void Table::add_column(const std::string& name, const std::string& type) {
   DebugAssert(chunk_count() == ChunkID{1}, "not exactly 1 chnunk in table");
   DebugAssert(row_count() == 0, "can not add column, since there is already a row");
@@ -57,6 +61,10 @@ void Table::_open_new_chunk() {
   }
 
   _chunks.emplace_back(std::move(chunk));
+}
+
+void Table::create_new_chunk() {
+  // Implementation goes here
 }
 
 uint16_t Table::column_count() const {
@@ -124,6 +132,10 @@ void Table::compress_chunk(ChunkID chunk_id) {
 
   std::unique_lock<std::shared_mutex> lock(_chunks_mutex);
   _chunks.at(chunk_id) = std::move(compressed_chunk);
+}
+
+void emplace_chunk(Chunk chunk) {
+  // Implementation goes here
 }
 
 }  // namespace opossum
