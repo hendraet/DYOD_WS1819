@@ -15,32 +15,29 @@ namespace opossum {
 
 TableScan::TableScan(const std::shared_ptr<const AbstractOperator> in, ColumnID column_id, const ScanType scan_type,
                      const AllTypeVariant search_value)
-    : AbstractOperator(in) {
-  const auto table = in->get_output();
-  _table_scan_impl = make_unique_by_data_type<BaseTableScanImpl, TableScanImpl>(table->column_type(column_id), table,
-                                                                                column_id, scan_type, search_value);
-}
+    : AbstractOperator(in), _column_id(column_id), _scan_type(scan_type), _search_value(search_value) {}
 
 TableScan::~TableScan() {
   // TODO
 }
 
-ColumnID TableScan::column_id() const { return _table_scan_impl->_column_id; }
+ColumnID TableScan::column_id() const { return _column_id; }
 
-ScanType TableScan::scan_type() const { return _table_scan_impl->_scan_type; }
+ScanType TableScan::scan_type() const { return _scan_type; }
 
-const AllTypeVariant& TableScan::search_value() const { return _table_scan_impl->_search_value; }
+const AllTypeVariant& TableScan::search_value() const { return _search_value; }
 
-std::shared_ptr<const Table> TableScan::_on_execute() { return _table_scan_impl->execute(); }
-
-TableScan::BaseTableScanImpl::BaseTableScanImpl(const std::shared_ptr<const Table> table, ColumnID column_id,
-                                                const ScanType scan_type, const AllTypeVariant search_value)
-    : _table(table), _column_id(column_id), _scan_type(scan_type), _search_value(search_value) {}
+std::shared_ptr<const Table> TableScan::_on_execute() {
+  const auto table = _input_table_left();
+  const auto table_scan_impl = make_unique_by_data_type<BaseTableScanImpl, TableScanImpl>(
+      table->column_type(_column_id), table, _column_id, _scan_type, _search_value);
+  return table_scan_impl->execute();
+}
 
 template <typename T>
 TableScan::TableScanImpl<T>::TableScanImpl(const std::shared_ptr<const Table> table, ColumnID column_id,
                                            const ScanType scan_type, const AllTypeVariant search_value)
-    : BaseTableScanImpl(table, column_id, scan_type, search_value) {}
+    : _table(table), _column_id(column_id), _scan_type(scan_type), _search_value(search_value) {}
 
 template <typename T>
 std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {

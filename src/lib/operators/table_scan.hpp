@@ -27,25 +27,20 @@ class TableScan : public AbstractOperator {
   const AllTypeVariant& search_value() const;
 
  protected:
+  const ColumnID _column_id;
+  const ScanType _scan_type;
+  const AllTypeVariant _search_value;
+
   std::shared_ptr<const Table> _on_execute() override;
 
   class BaseTableScanImpl {
    public:
-    BaseTableScanImpl(const std::shared_ptr<const Table> table, ColumnID column_id, const ScanType scan_type,
-                      const AllTypeVariant search_value);
+    BaseTableScanImpl() = default;
 
     virtual std::shared_ptr<const Table> execute() = 0;
 
    protected:
-    const std::shared_ptr<const Table> _table;
-    const ColumnID _column_id;
-    const ScanType _scan_type;
-    const AllTypeVariant _search_value;
-
-    friend TableScan;
   };
-
-  std::unique_ptr<BaseTableScanImpl> _table_scan_impl;
 
   template <typename T>
   class TableScanImpl : public BaseTableScanImpl {
@@ -57,6 +52,11 @@ class TableScan : public AbstractOperator {
     std::shared_ptr<const Table> execute() override;
 
    protected:
+    const std::shared_ptr<const Table> _table;
+    const ColumnID _column_id;
+    const ScanType _scan_type;
+    const AllTypeVariant _search_value;
+
     const std::vector<ChunkOffset> _scan_segment(std::shared_ptr<ValueSegment<T>> segment) const;
 
     bool _matches_search_value(const T& value) const;
