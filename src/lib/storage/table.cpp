@@ -21,7 +21,8 @@ namespace opossum {
 Table::Table(const uint32_t chunk_size) : _chunk_size{chunk_size} { _open_new_chunk(); }
 
 void Table::add_column_definition(const std::string& name, const std::string& type) {
-  // Implementation goes here
+  _column_names.push_back(name);
+  _column_types.push_back(type);
 }
 
 void Table::add_column(const std::string& name, const std::string& type) {
@@ -30,8 +31,7 @@ void Table::add_column(const std::string& name, const std::string& type) {
   DebugAssert(std::find(_column_names.begin(), _column_names.end(), name) == _column_names.end(),
               "column name already exists");
 
-  _column_names.push_back(name);
-  _column_types.push_back(type);
+  add_column_definition(name, type);
   _chunks.front().add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(type));
 }
 
