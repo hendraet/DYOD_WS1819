@@ -22,8 +22,6 @@ class TableScan : public AbstractOperator {
   TableScan(const std::shared_ptr<const AbstractOperator> in, ColumnID column_id, const ScanType scan_type,
             const AllTypeVariant search_value);
 
-  ~TableScan();
-
   ColumnID column_id() const;
   ScanType scan_type() const;
   const AllTypeVariant& search_value() const;
@@ -37,8 +35,6 @@ class TableScan : public AbstractOperator {
 
   class BaseTableScanImpl {
    public:
-    BaseTableScanImpl() = default;
-
     virtual const std::shared_ptr<const Table> execute() const = 0;
   };
 

@@ -17,10 +17,6 @@ TableScan::TableScan(const std::shared_ptr<const AbstractOperator> in, ColumnID 
                      const AllTypeVariant search_value)
     : AbstractOperator(in), _column_id(column_id), _scan_type(scan_type), _search_value(search_value) {}
 
-TableScan::~TableScan() {
-  // TODO
-}
-
 ColumnID TableScan::column_id() const { return _column_id; }
 
 ScanType TableScan::scan_type() const { return _scan_type; }
