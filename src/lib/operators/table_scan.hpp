@@ -5,11 +5,11 @@
 #include <string>
 #include <vector>
 
-#include "../storage/dictionary_segment.hpp"
-#include "../storage/reference_segment.hpp"
-#include "../storage/value_segment.hpp"
 #include "abstract_operator.hpp"
 #include "all_type_variant.hpp"
+#include "storage/dictionary_segment.hpp"
+#include "storage/reference_segment.hpp"
+#include "storage/value_segment.hpp"
 #include "types.hpp"
 #include "utils/assert.hpp"
 
@@ -39,7 +39,7 @@ class TableScan : public AbstractOperator {
    public:
     BaseTableScanImpl() = default;
 
-    virtual std::shared_ptr<const Table> execute() = 0;
+    virtual const std::shared_ptr<const Table> execute() const = 0;
   };
 
   template <typename T>
@@ -48,14 +48,16 @@ class TableScan : public AbstractOperator {
     TableScanImpl(const std::shared_ptr<const Table> table, ColumnID column_id, const ScanType scan_type,
                   const AllTypeVariant search_value);
 
-    // TODO: Mark return and method as const?
-    std::shared_ptr<const Table> execute() override;
+    const std::shared_ptr<const Table> execute() const override;
 
    protected:
     const std::shared_ptr<const Table> _table;
     const ColumnID _column_id;
     const ScanType _scan_type;
-    const AllTypeVariant _search_value;
+    const T _search_value;
+
+    void _add_chunk(const std::shared_ptr<Table>& result_table, std::shared_ptr<PosList>& result_pos_list,
+                    const std::shared_ptr<const Table>& referenced_table) const;
 
     void _scan_segment(const ChunkID current_chunk_id, std::shared_ptr<PosList> pos_list,
                        const std::shared_ptr<ValueSegment<T>> segment) const;

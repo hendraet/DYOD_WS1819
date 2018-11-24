@@ -2,14 +2,14 @@
 #include <utility>
 #include <vector>
 
-#include "../resolve_type.hpp"
-#include "../storage/chunk.hpp"
-#include "../storage/dictionary_segment.hpp"
-#include "../storage/reference_segment.hpp"
-#include "../storage/table.hpp"
-#include "../storage/value_segment.hpp"
-#include "../types.hpp"
+#include "resolve_type.hpp"
+#include "storage/chunk.hpp"
+#include "storage/dictionary_segment.hpp"
+#include "storage/reference_segment.hpp"
+#include "storage/table.hpp"
+#include "storage/value_segment.hpp"
 #include "table_scan.hpp"
+#include "types.hpp"
 
 namespace opossum {
 
@@ -37,10 +37,10 @@ std::shared_ptr<const Table> TableScan::_on_execute() {
 template <typename T>
 TableScan::TableScanImpl<T>::TableScanImpl(const std::shared_ptr<const Table> table, ColumnID column_id,
                                            const ScanType scan_type, const AllTypeVariant search_value)
-    : _table(table), _column_id(column_id), _scan_type(scan_type), _search_value(search_value) {}
+    : _table(table), _column_id(column_id), _scan_type(scan_type), _search_value(type_cast<T>(search_value)) {}
 
 template <typename T>
-std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
+const std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() const {
   // First create an empty result_table with the column definitions copied from the input _table.
   // This does not add segments to the table.
   const auto result_table = std::make_shared<Table>();
@@ -48,28 +48,33 @@ std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
     result_table->add_column_definition(_table->column_name(column_idx), _table->column_type(column_idx));
   }
 
+  // During the execution of this method, we will create multiple ReferenceSegments. Because a ReferenceSegment can only
+  // reference rows of a single table, we create a new ReferenceSegment whenever the nth segment of the incoming table
+  // references a different table than the (n-1)th segment.
+  // The result_pos_list holds the PosList to of the currently being filled ReferenceSegment.
   auto result_pos_list = std::make_shared<PosList>();
 
-  Chunk result_chunk;
+  // This points to the table which was referenced by the last ReferenceSegment we added to the result table.
+  // It allows us to detect when we need to add another ReferenceSegment, because the referenced table changed.
   std::shared_ptr<const Table> last_referenced_table = nullptr;
 
+  // Here, we iterate through all chunks of the input table. Within the loop, we only retrieve one segment per chunk,
+  // more specifically, the segment corresponding to the column we want to filter on.
   for (auto chunk_index = ChunkID(0); chunk_index < _table->chunk_count(); ++chunk_index) {
     const auto& chunk = _table->get_chunk(chunk_index);
     const auto& segment_to_scan = chunk.get_segment(_column_id);
 
+    // The following three blocks work similarly. They first check the type of the segment_to_scan. Then, they add
+    // a new chunk including ReferenceSegments to the result table if the last referenced table is different from the
+    // current table and at least one valid row has been found.
+    // There is a slight difference between ValueSegments/DictionarySegments and ReferenceSegments: The former compare
+    // the _table with the last_referenced_table, whereas the latter needs to compare the table referenced by the
+    // ReferenceSegment with the last_referenced_table.
+
     const auto& value_segment = std::dynamic_pointer_cast<ValueSegment<T>>(segment_to_scan);
     if (value_segment != nullptr) {
       if (last_referenced_table != nullptr && last_referenced_table != _table && !result_pos_list->empty()) {
-        // The last ReferenceSegment we added pointed to a table different from the table this segment is part of. Thus,
-        // we need to add the last result_chunk to the result_table and create a new chunk with a new ReferenceSegment.
-
-        for (auto column_idx = ColumnID(0); column_idx < last_referenced_table->column_count(); ++column_idx) {
-          const auto segment = std::make_shared<ReferenceSegment>(last_referenced_table, column_idx, result_pos_list);
-          result_chunk.add_segment(segment);
-        }
-        result_table->emplace_chunk(std::move(result_chunk));
-        result_chunk = Chunk();
-        result_pos_list = std::make_shared<PosList>();
+        _add_chunk(result_table, result_pos_list, last_referenced_table);
       }
       last_referenced_table = _table;
       _scan_segment(chunk_index, result_pos_list, value_segment);
@@ -79,16 +84,7 @@ std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
     const auto& dict_segment = std::dynamic_pointer_cast<DictionarySegment<T>>(segment_to_scan);
     if (dict_segment != nullptr) {
       if (last_referenced_table != nullptr && last_referenced_table != _table && !result_pos_list->empty()) {
-        // The last ReferenceSegment we added pointed to a table different from the table this segment is part of. Thus,
-        // we need to add the last result_chunk to the result_table and create a new chunk with a new ReferenceSegment.
-
-        for (auto column_idx = ColumnID(0); column_idx < last_referenced_table->column_count(); ++column_idx) {
-          const auto segment = std::make_shared<ReferenceSegment>(last_referenced_table, column_idx, result_pos_list);
-          result_chunk.add_segment(segment);
-        }
-        result_table->emplace_chunk(std::move(result_chunk));
-        result_chunk = Chunk();
-        result_pos_list = std::make_shared<PosList>();
+        _add_chunk(result_table, result_pos_list, last_referenced_table);
       }
       last_referenced_table = _table;
       _scan_segment(chunk_index, result_pos_list, dict_segment);
@@ -99,17 +95,7 @@ std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
     if (reference_segment != nullptr) {
       if (last_referenced_table != nullptr && last_referenced_table != reference_segment->referenced_table() &&
           !result_pos_list->empty()) {
-        // The last ReferenceSegment we added pointed to a table different from the table this ReferenceSegment points
-        // to. Thus, we need to add the last result_chunk to the result_table and create a new chunk with a new
-        // ReferenceSegment.
-
-        for (auto column_idx = ColumnID(0); column_idx < last_referenced_table->column_count(); ++column_idx) {
-          const auto segment = std::make_shared<ReferenceSegment>(last_referenced_table, column_idx, result_pos_list);
-          result_chunk.add_segment(segment);
-        }
-        result_table->emplace_chunk(std::move(result_chunk));
-        result_chunk = Chunk();
-        result_pos_list = std::make_shared<PosList>();
+        _add_chunk(result_table, result_pos_list, last_referenced_table);
       }
       last_referenced_table = reference_segment->referenced_table();
       _scan_segment(result_pos_list, reference_segment);
@@ -120,14 +106,13 @@ std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
   }
 
   if (!result_pos_list->empty()) {
-    for (auto column_idx = ColumnID(0); column_idx < last_referenced_table->column_count(); ++column_idx) {
-      const auto segment = std::make_shared<ReferenceSegment>(last_referenced_table, column_idx, result_pos_list);
-      result_chunk.add_segment(segment);
-    }
-    result_table->emplace_chunk(std::move(result_chunk));
+    _add_chunk(result_table, result_pos_list, last_referenced_table);
   } else {
     auto& last_chunk = result_table->get_chunk(ChunkID(result_table->chunk_count() - 1));
     if (last_chunk.column_count() == 0) {
+      // This only happens when no result has been found. In this case, the result_table already has the columnd
+      // definitions set correctly as well as an empty chunk. We need to make sure to add one empty ValueSegment per
+      // column now.
       DebugAssert(result_table->chunk_count() == 1, "Only when the table has just one chunk it can be empty.");
       for (auto column_idx = ColumnID(0); column_idx < result_table->column_count(); ++column_idx) {
         last_chunk.add_segment(
@@ -137,6 +122,21 @@ std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
   }
 
   return result_table;
+}
+
+template <typename T>
+void TableScan::TableScanImpl<T>::_add_chunk(const std::shared_ptr<Table>& result_table,
+                                             std::shared_ptr<PosList>& result_pos_list,
+                                             const std::shared_ptr<const Table>& referenced_table) const {
+  // The last referenced table is different than the current table and at least one row valid row has been found.
+  // Thus, we need to add a new chunk to the result_table and add one ReferenceSegment per column to it.
+  Chunk result_chunk;
+  for (auto column_idx = ColumnID(0); column_idx < referenced_table->column_count(); ++column_idx) {
+    const auto segment = std::make_shared<ReferenceSegment>(referenced_table, column_idx, result_pos_list);
+    result_chunk.add_segment(segment);
+  }
+  result_table->emplace_chunk(std::move(result_chunk));
+  result_pos_list = std::make_shared<PosList>();
 }
 
 template <typename T>
@@ -204,28 +204,28 @@ void TableScan::TableScanImpl<T>::_scan_segment(std::shared_ptr<PosList> pos_lis
 
 template <typename T>
 bool TableScan::TableScanImpl<T>::_matches_search_value(const T& value) const {
-  const auto& search_value = type_cast<T>(_search_value);  // TODO: Don't type_cast every time!
   switch (_scan_type) {
     case ScanType::OpEquals: {
-      return value == search_value;
+      return value == _search_value;
     }
     case ScanType::OpNotEquals: {
-      return value != search_value;
+      return value != _search_value;
     }
     case ScanType::OpGreaterThan: {
-      return value > search_value;
+      return value > _search_value;
     }
     case ScanType::OpGreaterThanEquals: {
-      return value >= search_value;
+      return value >= _search_value;
     }
     case ScanType::OpLessThan: {
-      return value < search_value;
+      return value < _search_value;
     }
     case ScanType::OpLessThanEquals: {
-      return value <= search_value;
+      return value <= _search_value;
     }
     default: { Fail("Unknown scan type operator"); }
   }
+  return false;
 }
 
 }  // namespace opossum
