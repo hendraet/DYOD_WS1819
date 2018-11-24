@@ -128,7 +128,7 @@ std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() {
   } else {
     auto& last_chunk = result_table->get_chunk(ChunkID(result_table->chunk_count() - 1));
     if (last_chunk.column_count() == 0) {
-      Assert(result_table->chunk_count() == 1, "Only when the table has just one chunk it can be empty.");
+      DebugAssert(result_table->chunk_count() == 1, "Only when the table has just one chunk it can be empty.");
       for (auto column_idx = ColumnID(0); column_idx < result_table->column_count(); ++column_idx) {
         last_chunk.add_segment(
             make_shared_by_data_type<BaseSegment, ValueSegment>(result_table->column_type(column_idx)));
@@ -159,7 +159,7 @@ void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, 
   for (size_t i = 0; i < segment->size(); ++i) {
     if (_matches_search_value(segment->get(i))) {
       auto row_id = RowID();
-      row_id.chunk_offset = i;
+      row_id.chunk_offset = ChunkOffset(i);
       row_id.chunk_id = current_chunk_id;
       pos_list->emplace_back(std::move(row_id));
     }
@@ -197,7 +197,7 @@ void TableScan::TableScanImpl<T>::_scan_segment(std::shared_ptr<PosList> pos_lis
       auto row_id = RowID();
       row_id.chunk_offset = chunk_offset;
       row_id.chunk_id = chunk_id;
-      pos_list->emplace_back(row_id);
+      pos_list->emplace_back(std::move(row_id));
     }
   }
 }
@@ -226,7 +226,6 @@ bool TableScan::TableScanImpl<T>::_matches_search_value(const T& value) const {
     }
     default: { Fail("Unknown scan type operator"); }
   }
-  return false;  // TODO: Does this really need to be here?
 }
 
 }  // namespace opossum
