@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "../storage/dictionary_segment.hpp"
+#include "../storage/reference_segment.hpp"
 #include "../storage/value_segment.hpp"
 #include "abstract_operator.hpp"
 #include "all_type_variant.hpp"
@@ -38,8 +40,6 @@ class TableScan : public AbstractOperator {
     BaseTableScanImpl() = default;
 
     virtual std::shared_ptr<const Table> execute() = 0;
-
-   protected:
   };
 
   template <typename T>
@@ -57,7 +57,11 @@ class TableScan : public AbstractOperator {
     const ScanType _scan_type;
     const AllTypeVariant _search_value;
 
-    const std::vector<ChunkOffset> _scan_segment(std::shared_ptr<ValueSegment<T>> segment) const;
+    void _scan_segment(const ChunkID current_chunk_id, std::shared_ptr<PosList> pos_list,
+                       const std::shared_ptr<ValueSegment<T>> segment) const;
+    void _scan_segment(const ChunkID current_chunk_id, std::shared_ptr<PosList> pos_list,
+                       std::shared_ptr<DictionarySegment<T>> segment) const;
+    void _scan_segment(std::shared_ptr<PosList> pos_list, const std::shared_ptr<ReferenceSegment> segment) const;
 
     bool _matches_search_value(const T& value) const;
   };
