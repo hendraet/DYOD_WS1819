@@ -152,10 +152,13 @@ void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, 
 template <typename T>
 void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, std::shared_ptr<PosList> pos_list,
                                                 const std::shared_ptr<DictionarySegment<T>> segment) const {
-//  const auto& value_id_pair = _matches_value_id(ValueID(), segment);
   const auto& attribute_vector = segment->attribute_vector();
+
+  ValueID lower_bound = segment->lower_bound(_search_value);
+  ValueID upper_bound = segment->upper_bound(_search_value);
+
   for (size_t i = 0; i < segment->size(); ++i) {
-    if(_matches_value_id(attribute_vector->get(i), segment)) {
+    if (_matches_value_id(attribute_vector->get(i), lower_bound, upper_bound)) {
       auto row_id = RowID();
       row_id.chunk_offset = ChunkOffset(i);
       row_id.chunk_id = current_chunk_id;
@@ -165,26 +168,26 @@ void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, 
 }
 
 template <typename T>
-bool TableScan::TableScanImpl<T>::_matches_value_id(const ValueID& valueID,
-        const std::shared_ptr<DictionarySegment<T>> segment) const {
+bool TableScan::TableScanImpl<T>::_matches_value_id(const ValueID& valueID, const ValueID& lower_bound,
+                                                    const ValueID& upper_bound) const {
   switch (_scan_type) {
     case ScanType::OpEquals: {
-      return valueID >= segment->lower_bound(_search_value) && valueID < segment->upper_bound(_search_value);
+      return valueID >= lower_bound && valueID < upper_bound;
     }
     case ScanType::OpNotEquals: {
-      return valueID < segment->lower_bound(_search_value) || valueID >= segment->upper_bound(_search_value);
+      return valueID < lower_bound || valueID >= upper_bound;
     }
     case ScanType::OpGreaterThan: {
-      return valueID >= segment->upper_bound(_search_value) && valueID < ValueID(segment->dictionary()->size());
+      return valueID >= upper_bound;
     }
     case ScanType::OpGreaterThanEquals: {
-      return valueID >= segment->lower_bound(_search_value) && valueID < ValueID(segment->dictionary()->size());
+      return valueID >= lower_bound;
     }
     case ScanType::OpLessThan: {
-      return valueID < segment->lower_bound(_search_value) && valueID >= ValueID(0);
+      return valueID < lower_bound;
     }
     case ScanType::OpLessThanEquals: {
-      return valueID < segment->upper_bound(_search_value) && valueID >= ValueID(0);
+      return valueID < upper_bound;
     }
     default: { Fail("Unknown scan type operator"); }
   }
