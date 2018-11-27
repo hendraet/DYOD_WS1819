@@ -135,8 +135,7 @@ TEST_F(OperatorsTableScanTest, ScanOnDictColumn) {
 
   std::map<ScanType, std::vector<AllTypeVariant>> tests;
   tests[ScanType::OpEquals] = {104};
-  //TODO
-  //  tests[ScanType::OpNotEquals] = {100, 102, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
+  tests[ScanType::OpNotEquals] = {100, 102, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
   tests[ScanType::OpLessThan] = {100, 102};
   tests[ScanType::OpLessThanEquals] = {100, 102, 104};
   tests[ScanType::OpGreaterThan] = {106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
@@ -186,8 +185,7 @@ TEST_F(OperatorsTableScanTest, ScanOnDictColumnValueGreaterThanMaxDictionaryValu
 
   std::map<ScanType, std::vector<AllTypeVariant>> tests;
   tests[ScanType::OpEquals] = no_rows;
-  //TODO
-  //  tests[ScanType::OpNotEquals] = all_rows;
+  tests[ScanType::OpNotEquals] = all_rows;
   tests[ScanType::OpLessThan] = all_rows;
   tests[ScanType::OpLessThanEquals] = all_rows;
   tests[ScanType::OpGreaterThan] = no_rows;
@@ -207,8 +205,7 @@ TEST_F(OperatorsTableScanTest, ScanOnDictColumnValueLessThanMinDictionaryValue) 
 
   std::map<ScanType, std::vector<AllTypeVariant>> tests;
   tests[ScanType::OpEquals] = no_rows;
-  //TODO
-  //  tests[ScanType::OpNotEquals] = all_rows;
+  tests[ScanType::OpNotEquals] = all_rows;
   tests[ScanType::OpLessThan] = no_rows;
   tests[ScanType::OpLessThanEquals] = no_rows;
   tests[ScanType::OpGreaterThan] = all_rows;
@@ -231,8 +228,7 @@ TEST_F(OperatorsTableScanTest, ScanOnDictColumnAroundBounds) {
   tests[ScanType::OpLessThanEquals] = {100};
   tests[ScanType::OpGreaterThan] = {102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
   tests[ScanType::OpGreaterThanEquals] = {100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
-  //TODO
-  //  tests[ScanType::OpNotEquals] = {102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
+    tests[ScanType::OpNotEquals] = {102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124};
 
   for (const auto& test : tests) {
     auto scan = std::make_shared<opossum::TableScan>(_table_wrapper_even_dict, ColumnID{0}, test.first, 0);

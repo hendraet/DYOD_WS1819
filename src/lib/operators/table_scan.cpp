@@ -152,10 +152,10 @@ void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, 
 template <typename T>
 void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, std::shared_ptr<PosList> pos_list,
                                                 const std::shared_ptr<DictionarySegment<T>> segment) const {
-  const auto& value_id_pair = _get_value_ids(segment);
+//  const auto& value_id_pair = _matches_value_id(ValueID(), segment);
   const auto& attribute_vector = segment->attribute_vector();
   for (size_t i = 0; i < segment->size(); ++i) {
-    if (attribute_vector->get(i) >= value_id_pair.first && attribute_vector->get(i) < value_id_pair.second) {
+    if(_matches_value_id(attribute_vector->get(i), segment)) {
       auto row_id = RowID();
       row_id.chunk_offset = ChunkOffset(i);
       row_id.chunk_id = current_chunk_id;
@@ -165,31 +165,30 @@ void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, 
 }
 
 template <typename T>
-std::pair<ValueID, ValueID> TableScan::TableScanImpl<T>::_get_value_ids(
-    const std::shared_ptr<DictionarySegment<T>> segment) const {
+bool TableScan::TableScanImpl<T>::_matches_value_id(const ValueID& valueID,
+        const std::shared_ptr<DictionarySegment<T>> segment) const {
   switch (_scan_type) {
     case ScanType::OpEquals: {
-      return std::make_pair(segment->lower_bound(_search_value), segment->upper_bound(_search_value));
+      return valueID >= segment->lower_bound(_search_value) && valueID < segment->upper_bound(_search_value);
     }
     case ScanType::OpNotEquals: {
-      return std::make_pair(segment->upper_bound(_search_value), segment->lower_bound(_search_value));
+      return valueID < segment->lower_bound(_search_value) || valueID >= segment->upper_bound(_search_value);
     }
     case ScanType::OpGreaterThan: {
-      return std::make_pair(segment->upper_bound(_search_value), ValueID(segment->dictionary()->size()));
+      return valueID >= segment->upper_bound(_search_value) && valueID < ValueID(segment->dictionary()->size());
     }
     case ScanType::OpGreaterThanEquals: {
-      return std::make_pair(segment->lower_bound(_search_value), ValueID(segment->dictionary()->size()));
+      return valueID >= segment->lower_bound(_search_value) && valueID < ValueID(segment->dictionary()->size());
     }
     case ScanType::OpLessThan: {
-      return std::make_pair(ValueID(0), segment->lower_bound(_search_value));
+      return valueID < segment->lower_bound(_search_value) && valueID >= ValueID(0);
     }
     case ScanType::OpLessThanEquals: {
-      return std::make_pair(ValueID(0), segment->upper_bound(_search_value));
+      return valueID < segment->upper_bound(_search_value) && valueID >= ValueID(0);
     }
     default: { Fail("Unknown scan type operator"); }
   }
-  //TODO: Code should never be reached but compiler doesn't know this and errors becaus -Werror
-  return std::make_pair(ValueID(0), ValueID(1));
+  return false;
 }
 
 template <typename T>

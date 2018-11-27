@@ -64,7 +64,7 @@ class TableScan : public AbstractOperator {
 
     bool _matches_search_value(const T& value) const;
 
-    std::pair<ValueID, ValueID> _get_value_ids(const std::shared_ptr<DictionarySegment<T>> segment) const;
+    bool _matches_value_id(const ValueID& valueID, const std::shared_ptr<DictionarySegment<T>> segment) const;
   };
 };
 
