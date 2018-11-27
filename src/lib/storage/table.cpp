@@ -18,10 +18,11 @@
 
 namespace opossum {
 
-Table::Table(const uint32_t chunk_size) : _chunk_size{chunk_size} { _open_new_chunk(); }
+Table::Table(const uint32_t chunk_size) : _chunk_size{chunk_size} { create_new_chunk(); }
 
 void Table::add_column_definition(const std::string& name, const std::string& type) {
-  // Implementation goes here
+  _column_names.push_back(name);
+  _column_types.push_back(type);
 }
 
 void Table::add_column(const std::string& name, const std::string& type) {
@@ -30,14 +31,13 @@ void Table::add_column(const std::string& name, const std::string& type) {
   DebugAssert(std::find(_column_names.begin(), _column_names.end(), name) == _column_names.end(),
               "column name already exists");
 
-  _column_names.push_back(name);
-  _column_types.push_back(type);
+  add_column_definition(name, type);
   _chunks.front().add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(type));
 }
 
 void Table::append(std::vector<AllTypeVariant> values) {
   if (_is_latest_chunk_full()) {
-    _open_new_chunk();
+    create_new_chunk();
   }
 
   _chunks.back().append(values);
@@ -54,17 +54,13 @@ bool Table::_is_chunk_full(const ChunkID chunk_id) const {
   return chunk.size() >= chunk_size();
 }
 
-void Table::_open_new_chunk() {
+void Table::create_new_chunk() {
   Chunk chunk;
   for (const auto& column_type : _column_types) {
     chunk.add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(column_type));
   }
 
   _chunks.emplace_back(std::move(chunk));
-}
-
-void Table::create_new_chunk() {
-  // Implementation goes here
 }
 
 uint16_t Table::column_count() const {
@@ -132,10 +128,6 @@ void Table::compress_chunk(ChunkID chunk_id) {
 
   std::unique_lock<std::shared_mutex> lock(_chunks_mutex);
   _chunks.at(chunk_id) = std::move(compressed_chunk);
-}
-
-void emplace_chunk(Chunk chunk) {
-  // Implementation goes here
 }
 
 }  // namespace opossum

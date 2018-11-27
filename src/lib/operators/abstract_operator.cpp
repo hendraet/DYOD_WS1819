@@ -14,11 +14,16 @@ AbstractOperator::AbstractOperator(const std::shared_ptr<const AbstractOperator>
                                    const std::shared_ptr<const AbstractOperator> right)
     : _input_left(left), _input_right(right) {}
 
-void AbstractOperator::execute() { _output = _on_execute(); }
+void AbstractOperator::execute() {
+  Assert(_input_left == nullptr || _input_left->_output != nullptr,
+         "You need to execute the left input operator before executing this one.");
+  Assert(_input_right == nullptr || _input_right->_output != nullptr,
+         "You need to execute the right input operator before executing this one.");
+  _output = _on_execute();
+}
 
 std::shared_ptr<const Table> AbstractOperator::get_output() const {
-  // TODO(anyone): You should place some meaningful checks here
-
+  Assert(_output != nullptr, "You need to execute this operator before requesting its output.");
   return _output;
 }
 
