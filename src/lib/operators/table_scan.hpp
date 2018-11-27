@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "abstract_operator.hpp"
@@ -62,6 +63,8 @@ class TableScan : public AbstractOperator {
     void _scan_segment(std::shared_ptr<PosList> pos_list, const std::shared_ptr<ReferenceSegment> segment) const;
 
     bool _matches_search_value(const T& value) const;
+
+    std::pair<ValueID, ValueID> _get_value_ids(const std::shared_ptr<DictionarySegment<T>> segment) const;
   };
 };
 

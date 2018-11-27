@@ -106,7 +106,7 @@ const std::shared_ptr<const Table> TableScan::TableScanImpl<T>::execute() const 
   } else {
     auto& last_chunk = result_table->get_chunk(ChunkID(result_table->chunk_count() - 1));
     if (last_chunk.column_count() == 0) {
-      // This only happens when no result has been found. In this case, the result_table already has the columnd
+      // This only happens when no result has been found. In this case, the result_table already has the column
       // definitions set correctly as well as an empty chunk. We need to make sure to add one empty ValueSegment per
       // column now.
       DebugAssert(result_table->chunk_count() == 1, "Only when the table has just one chunk it can be empty.");
@@ -152,14 +152,44 @@ void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, 
 template <typename T>
 void TableScan::TableScanImpl<T>::_scan_segment(const ChunkID current_chunk_id, std::shared_ptr<PosList> pos_list,
                                                 const std::shared_ptr<DictionarySegment<T>> segment) const {
+  const auto& value_id_pair = _get_value_ids(segment);
+  const auto& attribute_vector = segment->attribute_vector();
   for (size_t i = 0; i < segment->size(); ++i) {
-    if (_matches_search_value(segment->get(i))) {
+    if (attribute_vector->get(i) >= value_id_pair.first && attribute_vector->get(i) < value_id_pair.second) {
       auto row_id = RowID();
       row_id.chunk_offset = ChunkOffset(i);
       row_id.chunk_id = current_chunk_id;
       pos_list->emplace_back(std::move(row_id));
     }
   }
+}
+
+template <typename T>
+std::pair<ValueID, ValueID> TableScan::TableScanImpl<T>::_get_value_ids(
+    const std::shared_ptr<DictionarySegment<T>> segment) const {
+  switch (_scan_type) {
+    case ScanType::OpEquals: {
+      return std::make_pair(segment->lower_bound(_search_value), segment->upper_bound(_search_value));
+    }
+    case ScanType::OpNotEquals: {
+      return std::make_pair(segment->upper_bound(_search_value), segment->lower_bound(_search_value));
+    }
+    case ScanType::OpGreaterThan: {
+      return std::make_pair(segment->upper_bound(_search_value), ValueID(segment->dictionary()->size()));
+    }
+    case ScanType::OpGreaterThanEquals: {
+      return std::make_pair(segment->lower_bound(_search_value), ValueID(segment->dictionary()->size()));
+    }
+    case ScanType::OpLessThan: {
+      return std::make_pair(ValueID(0), segment->lower_bound(_search_value));
+    }
+    case ScanType::OpLessThanEquals: {
+      return std::make_pair(ValueID(0), segment->upper_bound(_search_value));
+    }
+    default: { Fail("Unknown scan type operator"); }
+  }
+  //TODO: Code should never be reached but compiler doesn't know this and errors becaus -Werror
+  return std::make_pair(ValueID(0), ValueID(1));
 }
 
 template <typename T>
