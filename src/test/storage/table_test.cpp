@@ -9,6 +9,7 @@
 
 #include "../lib/resolve_type.hpp"
 #include "../lib/storage/table.hpp"
+#include "../lib/storage/value_segment.hpp"
 
 namespace opossum {
 
@@ -73,4 +74,24 @@ TEST_F(StorageTableTest, GetChunkSize) { EXPECT_EQ(t.chunk_size(), 2u); }
 
 TEST_F(StorageTableTest, ColumnNames) { EXPECT_EQ(t.column_names(), std::vector<std::string>({"col_1", "col_2"})); }
 
+TEST_F(StorageTableTest, EmplaceChunk) {
+  {
+    Chunk chunk;
+    chunk.add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(t.column_type(ColumnID(0))));
+    chunk.add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(t.column_type(ColumnID(1))));
+    t.emplace_chunk(std::move(chunk));
+    EXPECT_EQ(t.chunk_count(), 1u);
+  }
+
+  t.append({1, "Hallo"});
+  EXPECT_EQ(t.chunk_count(), 1u);
+
+  {
+    Chunk chunk;
+    chunk.add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(t.column_type(ColumnID(0))));
+    chunk.add_segment(make_shared_by_data_type<BaseSegment, ValueSegment>(t.column_type(ColumnID(1))));
+    t.emplace_chunk(std::move(chunk));
+    EXPECT_EQ(t.chunk_count(), 2u);
+  }
+}
 }  // namespace opossum

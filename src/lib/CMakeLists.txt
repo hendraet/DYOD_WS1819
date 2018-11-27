@@ -9,6 +9,7 @@ set(
     operators/get_table.cpp
     operators/print.cpp
     operators/print.hpp
+    operators/table_scan.cpp
     operators/table_scan.hpp
     operators/table_wrapper.cpp
     operators/table_wrapper.hpp
@@ -19,6 +20,7 @@ set(
     storage/dictionary_segment.hpp
     storage/fitted_attribute_vector.cpp
     storage/fitted_attribute_vector.hpp
+    storage/reference_segment.cpp
     storage/reference_segment.hpp
     storage/storage_manager.cpp
     storage/storage_manager.hpp
